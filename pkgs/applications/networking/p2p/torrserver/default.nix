@@ -3,15 +3,14 @@
 , go
 , pkgs
 , buildGoModule
-, yarn2nix
+, fetchYarnDeps
 , mkYarnPackage
 , fetchFromGitHub
 , fetchurl
 , nixosTests
 }:
 
-
-let
+buildGoModule rec {
   pname = "torrserver";
   version = "121";
   src = fetchFromGitHub {
@@ -20,28 +19,29 @@ let
     repo = "TorrServer";
     sha256 = "sha256-xFUebXoGSqao7PDGNqk8jfkp64WHlJOBQtp7wsyw5Mc=";
   };
-  web = mkYarnPackage {
-    inherit pname version;
-    src = "${src}/web";
-
-#    yarnNix = ./yarn.nix;
-    yarnLock = ./yarn.lock;
-    yarnFlags = [
-      "--offline"
-    ];
-#    packageJSON = ./package.json;
-    buildPhase = ''
-      OUTPUT_DIR=$out yarn --offline build
-    '';
-  };
-in
-buildGoModule {
-  inherit pname version;
   vendorHash = null;
-  src = "${web}/server";
+  web = mkYarnPackage {
+    inherit version;
+    src = "${src}/web";
+    offlineCache = fetchYarnDeps {
+      yarnLock = "${src}/web/yarn.lock";
+      sha256 = "sha256-uLupd44FZPdlC6DMat/7TS1M422FJPwEYqFClRCOdtw=";
+    };
+    packageJSON = ./package.json;
+
+    buildPhase = ''
+      runHook preBuild
+      yarn --offline build
+      runHook postbuild
+    '';
+    doDist = false;
+  };
+
   buildPhase = ''
-#    go run gen_web.go
-    go build -o /dist/TorrServer ${src}/cmd
+    cp -vr ${web}/* ${src}/web
+    go run gen_web.go
+    cd ${src}/server
+    go build -o /dist/TorrServer ./cmd
   '';
 
   ldflags = [
