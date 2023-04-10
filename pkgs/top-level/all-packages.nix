@@ -39933,4 +39933,6 @@ with pkgs;
   zf = callPackage ../tools/misc/zf { };
 
   isolate = callPackage ../tools/security/isolate { };
+
+  torrserver = callPackage ../applications/networking/p2p/torrserver { };
 }
